@@ -1,12 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "struct.h"
-// PARSEUR
-// FIN PARSEUR
-// GRID
-
-struct term grid;
-struct term *p_grid = &grid;
 
 void enable_pen_style(struct term *c_term, short style_to_enable){
     c_term->styl_pen = c_term->styl_pen | (1 << style_to_enable);
@@ -27,16 +21,28 @@ void change_pen_bg_color(struct term *c_term, uint32_t bg_color)
     c_term->bcol_pen = bg_color;
 }
 
+void reset_pen(struct term *c_term)
+{
+    c_term->col_pen = COLOR_BASE;
+    c_term->bcol_pen = BG_COLOR_BASE;
+    c_term->styl_pen = STYLE_BASE;
+}
+
+void clear_cell(struct term *c_term, int line, int col)
+{
+    struct ele* l_clear = &c_term->cells[line][col];
+    l_clear->c = 0;
+    l_clear->bcol = c_term->bcol_pen;
+    l_clear->col = c_term->col_pen;
+    l_clear->styles = c_term->styl_pen;
+}
+
 void clear_line(struct term *c_term, int line)
 {
     int c_col = 0;
     while (c_col < SIZE_X)
     {
-        struct ele* l_clear = &c_term->cells[line][c_col];
-        l_clear->c = 0;
-        l_clear->bcol = BG_COLOR_BASE;
-        l_clear->col = COLOR_BASE;
-        l_clear->styles = STYLE_BASE;
+        clear_cell(c_term, line, c_col);
         c_col+=1;
     }
 }
@@ -59,9 +65,7 @@ void scroll(struct term* c_term)
 void back_line(struct term* c_term)
 {
     if (c_term->curs_y-1 >= 0)
-    {
         c_term->curs_y -= 1;
-    }
 }
 
 void jump_line(struct term* c_term)  // \n
@@ -72,17 +76,13 @@ void jump_line(struct term* c_term)  // \n
         clear_line(c_term, SIZE_Y - 1);
     }
     else
-    {
         c_term->curs_y += 1;
-    }
 }
 
 void back(struct term* c_term) // \b
 {
     if (c_term->curs_x > 0)
-    {
         c_term->curs_x -= 1;
-    }
 }
 
 void begi_line(struct term* c_term)
@@ -94,13 +94,9 @@ void tab(struct term* c_term)
 {
     int target = c_term->curs_x - c_term->curs_x % 8 + 8;
     if (target < SIZE_X)
-    {
         c_term->curs_x = target;
-    }
     else
-    {
         c_term->curs_x = SIZE_X - 1;
-    }
 }
 
 void p_char(struct term* c_term, uint32_t to_print)
@@ -125,49 +121,115 @@ void clear_all(struct term *c_term)
         clear_line(c_term, y);
         y+=1;
     }
-    c_term->bcol_pen = BG_COLOR_BASE;
-    c_term->col_pen = COLOR_BASE;
-    c_term->styl_pen = STYLE_BASE;
-    c_term->curs_x = 0;
-    c_term->curs_y = 0;
 }
 
-int main()
+void screen_init(struct term *c_term)
 {
-    printf("TEST GRID\n");
-    printf("%d\n",p_grid->curs_x);
-    printf("%d\n",p_grid->curs_y);
-    p_char(p_grid, 100);
-    tab(p_grid);
-    p_char(p_grid, 7982);
-    int y = 0;
-    while(y < SIZE_Y)
+    c_term->curs_x = 0;
+    c_term->curs_y = 0;
+    reset_pen(c_term);
+    clear_all(c_term);
+}
+
+void erase_in_line(struct term *c_term, int mode)
+{
+    int c_col;
+
+    if (mode == 2) // Clear line 
     {
-        int x = 0;
-        while (x < SIZE_X)
-        {
-            printf("%d|", p_grid->cells[y][x].c);
-            x ++;
-        }
-        printf("\n");
-        y ++;
+        clear_line(c_term, c_term->curs_y);
+        return;
     }
-    printf("CLEARRRR\n");
-    clear_line(p_grid, 0);
-    begi_line(p_grid);
-    printf("%d\n",p_grid->curs_x);
-    printf("%d\n",p_grid->curs_y);
-    p_char(p_grid, 123);
-    y = 0;
-    while(y < SIZE_Y)
+    if (mode == 0) // Clear from curs to end 
     {
-        int x = 0;
-        while (x < SIZE_X)
+        c_col = c_term->curs_x;
+        while (c_col < SIZE_X)
         {
-            printf("%d|", p_grid->cells[y][x].c);
-            x ++;
+            clear_cell(c_term, c_term->curs_y, c_col);
+            c_col += 1;
         }
-        printf("\n");
-        y ++;
+    }
+    else if (mode == 1) // Clear from start to curs 
+    {
+        c_col = 0;
+        while (c_col <= c_term->curs_x)
+        {
+            clear_cell(c_term, c_term->curs_y, c_col);
+            c_col += 1;
+        }
     }
 }
+
+void erase_in_display(struct term *c_term, int mode)
+{
+    int c_row;
+
+    if (mode == 2)
+    {
+        clear_all(c_term);
+        return;
+    }
+    if (mode == 0)
+    {
+        erase_in_line(c_term, 0);
+        c_row = c_term->curs_y + 1;
+        while (c_row < SIZE_Y)
+        {
+            clear_line(c_term, c_row);
+            c_row += 1;
+        }
+    }
+    else if (mode == 1)
+    {
+        erase_in_line(c_term, 1);
+        c_row = 0;
+        while (c_row < c_term->curs_y)
+        {
+            clear_line(c_term, c_row);
+            c_row += 1;
+        }
+    }
+}
+
+void cursor_move(struct term *c_term, int row, int col)
+{
+    if (row < 0)
+        row = 0;
+    if (row >= SIZE_Y)
+        row = SIZE_Y - 1;
+    if (col < 0)
+        col = 0;
+    if (col >= SIZE_X)
+        col = SIZE_X - 1;
+    c_term->curs_y = row;
+    c_term->curs_x = col;
+}
+
+void cursor_up(struct term *c_term, int n)
+{
+    c_term->curs_y -= n;
+    if (c_term->curs_y < 0)
+        c_term->curs_y = 0;
+}
+
+void cursor_down(struct term *c_term, int n)
+{
+    c_term->curs_y += n;
+    if (c_term->curs_y >= SIZE_Y)
+        c_term->curs_y = SIZE_Y - 1;
+}
+
+void cursor_forward(struct term *c_term, int n)
+{
+    c_term->curs_x += n;
+    if (c_term->curs_x >= SIZE_X)
+        c_term->curs_x = SIZE_X - 1;
+}
+
+void cursor_back(struct term *c_term, int n)
+{
+    c_term->curs_x -= n;
+    if (c_term->curs_x < 0)
+        c_term->curs_x = 0;
+}
+
