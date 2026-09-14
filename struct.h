@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+#ifndef STRUCT_H 
+#define STRUCT_H
 #define SIZE_X 80
 #define SIZE_Y 24
 #define BG_COLOR_BASE 0
@@ -46,3 +48,5 @@ void cursor_up(struct term *c_term, int n);
 void cursor_down(struct term *c_term, int n);
 void cursor_forward(struct term *c_term, int n);
 void cursor_back(struct term *c_term, int n);
+
+#endif
