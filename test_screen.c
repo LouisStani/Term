@@ -193,6 +193,281 @@ static void test_reset_pen(void)
     CHECK(t.styl_pen == STYLE_BASE);
 }
 
+static void test_erase_in_line_mode0(void)
+{
+    struct term t;
+    int c_col;
+
+    screen_init(&t);
+    c_col = 0;
+    while (c_col < SIZE_X)
+    {
+        t.cells[2][c_col].c = 'x';
+        c_col += 1;
+    }
+    t.curs_y = 2;
+    t.curs_x = 40;
+    change_pen_color(&t, 7);
+    erase_in_line(&t, 0);
+    CHECK(t.cells[2][39].c == 'x');
+    CHECK(t.cells[2][40].c == 0);
+    CHECK(t.cells[2][40].col == 7);
+    CHECK(t.cells[2][SIZE_X - 1].c == 0);
+    CHECK(t.curs_x == 40);
+    CHECK(t.curs_y == 2);
+}
+
+static void test_erase_in_line_mode1(void)
+{
+    struct term t;
+    int c_col;
+
+    screen_init(&t);
+    c_col = 0;
+    while (c_col < SIZE_X)
+    {
+        t.cells[2][c_col].c = 'x';
+        c_col += 1;
+    }
+    t.curs_y = 2;
+    t.curs_x = 40;
+    change_pen_color(&t, 7);
+    erase_in_line(&t, 1);
+    CHECK(t.cells[2][0].c == 0);
+    CHECK(t.cells[2][0].col == 7);
+    CHECK(t.cells[2][40].c == 0);
+    CHECK(t.cells[2][41].c == 'x');
+    CHECK(t.curs_x == 40);
+    CHECK(t.curs_y == 2);
+}
+
+static void test_erase_in_line_mode2(void)
+{
+    struct term t;
+    int c_col;
+
+    screen_init(&t);
+    c_col = 0;
+    while (c_col < SIZE_X)
+    {
+        t.cells[2][c_col].c = 'x';
+        c_col += 1;
+    }
+    t.curs_y = 2;
+    t.curs_x = 40;
+    erase_in_line(&t, 2);
+    CHECK(t.cells[2][0].c == 0);
+    CHECK(t.cells[2][SIZE_X - 1].c == 0);
+    CHECK(t.curs_x == 40);
+    CHECK(t.curs_y == 2);
+}
+
+static void test_erase_in_display_mode0(void)
+{
+    struct term t;
+    int c_row;
+    int c_col;
+
+    screen_init(&t);
+    c_row = 0;
+    while (c_row < SIZE_Y)
+    {
+        c_col = 0;
+        while (c_col < SIZE_X)
+        {
+            t.cells[c_row][c_col].c = 'x';
+            c_col += 1;
+        }
+        c_row += 1;
+    }
+    t.curs_y = 10;
+    t.curs_x = 40;
+    change_pen_color(&t, 7);
+    erase_in_display(&t, 0);
+    CHECK(t.cells[10][39].c == 'x');
+    CHECK(t.cells[10][40].c == 0);
+    CHECK(t.cells[10][40].col == 7);
+    CHECK(t.cells[11][0].c == 0);
+    CHECK(t.cells[SIZE_Y - 1][SIZE_X - 1].c == 0);
+    CHECK(t.cells[9][SIZE_X - 1].c == 'x');
+    CHECK(t.curs_x == 40);
+    CHECK(t.curs_y == 10);
+}
+
+static void test_erase_in_display_mode1(void)
+{
+    struct term t;
+    int c_row;
+    int c_col;
+
+    screen_init(&t);
+    c_row = 0;
+    while (c_row < SIZE_Y)
+    {
+        c_col = 0;
+        while (c_col < SIZE_X)
+        {
+            t.cells[c_row][c_col].c = 'x';
+            c_col += 1;
+        }
+        c_row += 1;
+    }
+    t.curs_y = 10;
+    t.curs_x = 40;
+    change_pen_color(&t, 7);
+    erase_in_display(&t, 1);
+    CHECK(t.cells[0][0].c == 0);
+    CHECK(t.cells[9][SIZE_X - 1].c == 0);
+    CHECK(t.cells[10][40].c == 0);
+    CHECK(t.cells[10][40].col == 7);
+    CHECK(t.cells[10][41].c == 'x');
+    CHECK(t.cells[11][0].c == 'x');
+    CHECK(t.curs_x == 40);
+    CHECK(t.curs_y == 10);
+}
+
+static void test_erase_in_display_mode2(void)
+{
+    struct term t;
+
+    screen_init(&t);
+    t.curs_x = 10;
+    t.curs_y = 3;
+    change_pen_color(&t, 9);
+    t.cells[5][5].c = 'x';
+    erase_in_display(&t, 2);
+    CHECK(t.cells[5][5].c == 0);
+    CHECK(t.cells[5][5].col == 9);
+    CHECK(t.curs_x == 10);
+    CHECK(t.curs_y == 3);
+    CHECK(t.col_pen == 9);
+}
+
+static void test_cursor_move(void)
+{
+    struct term t;
+
+    screen_init(&t);
+    cursor_move(&t, 5, 10);
+    CHECK(t.curs_y == 5);
+    CHECK(t.curs_x == 10);
+    cursor_move(&t, -1, -1);
+    CHECK(t.curs_y == 0);
+    CHECK(t.curs_x == 0);
+    cursor_move(&t, SIZE_Y, SIZE_X);
+    CHECK(t.curs_y == SIZE_Y - 1);
+    CHECK(t.curs_x == SIZE_X - 1);
+}
+
+static void test_cursor_up(void)
+{
+    struct term t;
+
+    screen_init(&t);
+    t.curs_y = 10;
+    t.curs_x = 5;
+    cursor_up(&t, 3);
+    CHECK(t.curs_y == 7);
+    CHECK(t.curs_x == 5);
+    t.curs_y = 2;
+    cursor_up(&t, 5);
+    CHECK(t.curs_y == 0);
+}
+
+static void test_cursor_down(void)
+{
+    struct term t;
+
+    screen_init(&t);
+    t.curs_y = 5;
+    t.curs_x = 5;
+    cursor_down(&t, 3);
+    CHECK(t.curs_y == 8);
+    CHECK(t.curs_x == 5);
+    t.curs_y = SIZE_Y - 2;
+    cursor_down(&t, 5);
+    CHECK(t.curs_y == SIZE_Y - 1);
+}
+
+static void test_cursor_forward(void)
+{
+    struct term t;
+
+    screen_init(&t);
+    t.curs_x = 5;
+    t.curs_y = 5;
+    cursor_forward(&t, 3);
+    CHECK(t.curs_x == 8);
+    CHECK(t.curs_y == 5);
+    t.curs_x = SIZE_X - 2;
+    cursor_forward(&t, 5);
+    CHECK(t.curs_x == SIZE_X - 1);
+}
+
+static void test_cursor_back(void)
+{
+    struct term t;
+
+    screen_init(&t);
+    t.curs_x = 10;
+    t.curs_y = 5;
+    cursor_back(&t, 3);
+    CHECK(t.curs_x == 7);
+    CHECK(t.curs_y == 5);
+    t.curs_x = 2;
+    cursor_back(&t, 5);
+    CHECK(t.curs_x == 0);
+}
+
+static void test_enable_pen_style(void)
+{
+    struct term t;
+
+    screen_init(&t);
+    enable_pen_style(&t, 1);
+    CHECK(t.styl_pen == (1 << 1));
+    enable_pen_style(&t, 3);
+    CHECK(t.styl_pen == ((1 << 1) | (1 << 3)));
+    enable_pen_style(&t, 1);
+    CHECK(t.styl_pen == ((1 << 1) | (1 << 3)));
+}
+
+static void test_disable_pen_style(void)
+{
+    struct term t;
+
+    screen_init(&t);
+    enable_pen_style(&t, 1);
+    enable_pen_style(&t, 3);
+    enable_pen_style(&t, 5);
+    disable_pen_style(&t, 3);
+    CHECK(t.styl_pen == ((1 << 1) | (1 << 5)));
+    disable_pen_style(&t, 3);
+    CHECK(t.styl_pen == ((1 << 1) | (1 << 5)));
+}
+
+static void test_change_pen_color(void)
+{
+    struct term t;
+
+    screen_init(&t);
+    change_pen_color(&t, 42);
+    CHECK(t.col_pen == 42);
+    change_pen_color(&t, 100);
+    CHECK(t.col_pen == 100);
+}
+
+static void test_change_pen_bg_color(void)
+{
+    struct term t;
+
+    screen_init(&t);
+    change_pen_bg_color(&t, 42);
+    CHECK(t.bcol_pen == 42);
+    change_pen_bg_color(&t, 100);
+    CHECK(t.bcol_pen == 100);
+}
+
 int main(void)
 {
     test_screen_init();
@@ -207,6 +482,21 @@ int main(void)
     test_clear_line_uses_current_pen();
     test_clear_all_does_not_touch_pen_or_cursor();
     test_reset_pen();
+    test_erase_in_line_mode0();
+    test_erase_in_line_mode1();
+    test_erase_in_line_mode2();
+    test_erase_in_display_mode0();
+    test_erase_in_display_mode1();
+    test_erase_in_display_mode2();
+    test_cursor_move();
+    test_cursor_up();
+    test_cursor_down();
+    test_cursor_forward();
+    test_cursor_back();
+    test_enable_pen_style();
+    test_disable_pen_style();
+    test_change_pen_color();
+    test_change_pen_bg_color();
 
 
     if (g_failures == 0)
